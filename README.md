@@ -8,6 +8,7 @@
 - masterpiece
 - 8k
 - 4k
+- physically-based rendering
 
 ## 衣服
 
