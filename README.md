@@ -11,7 +11,7 @@
 
 ## 衣服
 
-beige sweater,bare shoulder
+- beige sweater,bare shoulder
 
 ## 衣服状态
 
