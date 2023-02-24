@@ -16,5 +16,8 @@
 
 ## 衣服状态
 
+- sleeves rolled up
+- shirt lift
+
 ## 地点
 -shopping mall rooftop cafe
