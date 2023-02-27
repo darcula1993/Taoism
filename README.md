@@ -24,7 +24,7 @@
 - heavy breathing
 
 ## 衣服
-
+- see-through uniform suit
 - beige sweater,bare shoulder
 
 ## 衣服状态
