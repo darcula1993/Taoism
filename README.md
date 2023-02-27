@@ -20,4 +20,4 @@
 - shirt lift
 
 ## 地点
--shopping mall rooftop cafe
+- shopping mall rooftop cafe
