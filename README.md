@@ -21,6 +21,7 @@
 ## 物体
 
 ## 姿势
+- heavy breathing
 
 ## 衣服
 
