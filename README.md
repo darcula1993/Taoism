@@ -1,6 +1,6 @@
 # Taoism
 
-## General Positive Prompt
+## 通用正向 Prompt
 - best quality
 - ultra high res
 - photorealistic
@@ -9,6 +9,16 @@
 - 8k
 - 4k
 - physically-based rendering
+
+## 通用负面 Prompt
+
+## 职业
+
+## 风格
+
+## 物体
+
+## 姿势
 
 ## 衣服
 
