@@ -16,8 +16,175 @@
 假设我只用两种图像训练一个扩散模型:猫和狗。在下图中，左边的两个峰代表猫和狗的图像组。
 
 ## Forward diffusion
-![image1](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-79.png?resize=1024%2C446&ssl=1)
+![Forward diffusion turns a photo into noise.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-79.png?resize=1024%2C446&ssl=1)
 
 正向扩散过程将噪声添加到训练图像中，逐渐将其转变为非特征噪声图像。前向过程将把任何猫或狗的图像转换为噪声图像。最终，你将无法分辨它们最初是狗还是猫。(这很重要)
 就像一滴墨水掉进一杯水里。墨滴在水中扩散。几分钟后，它在水中随机分布。你不再知道它最初是落在中心还是边缘附近。
 下面是一个图像正扩散的例子。猫的图像变成了随机噪声。
+
+![Forward diffusion of a cat image.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-81.png?w=966&ssl=1)
+
+## Reverse diffusion
+
+现在有趣的部分来了。如果我们能逆转扩散呢?就像倒着放视频一样。回到过去。我们将看到墨水滴最初添加的位置。
+
+![Reverse diffusion process recovers an image.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-80.png?resize=1024%2C480&ssl=1)
+
+从一个嘈杂的，无意义的图像开始，反向扩散恢复猫或狗的图像。这就是这一算法的主要思想。从技术上讲，每个扩散过程都有两部分:(1)漂移或定向运动和 (2)随机运动。反向扩散漂移到猫或狗的图像上，而不是介于两者之间。这就是为什么结果不是猫就是狗。
+
+# How training is done
+
+反向扩散的想法无疑是聪明而优雅的。但最重要的问题是，“如何做到这一点?”为了逆转扩散，我们需要知道在图像中添加了多少噪声。实现这一过程的方法是教一个神经网络模型来预测添加的噪声。它被称为稳定扩散中的噪声预测器。这是一个U-Net模式。培训内容如下：
+
+1. 选择一张训练图片, 比如一张猫的图片.
+2. 生成一个随机噪声.
+3. 分步将噪声添加到图像中，来逐步破坏训练图像.
+4. 训练深度模型来预测每一步我们添加了多少噪声.
+
+![Noise is sequentially added at each step. The noise predictor estimates the total noise added up to each step.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-82.png?w=936&ssl=1)
+
+经过训练，我们有了一个噪声预测器，能够估计添加到图像中的噪声。
+
+## Reverse diffusion
+
+现在我们有了噪声预测器。如何使用它?我们首先生成一个完全随机的图像，并让噪声预测器告诉我们噪声。然后我们从原始图像中减去这个估计的噪声。重复这个过程几次。你会得到一个猫或狗的图像。
+
+![Reverse diffusion works by subtracting the predicted noise from the image successively.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-84.png?resize=1024%2C381&ssl=1)
+
+您可能注意到，我们无法控制生成猫或狗的图像。我们会在讲到条件作用的时候讲到这个。目前，图像生成是无条件的。
+
+# Stable Diffusion model
+
+现在我需要告诉你一些坏消息:我们刚刚谈论的不是稳定扩散的工作原理!原因是上述扩散过程是在图像空间中。它在计算上非常非常慢。你将无法在任何单个GPU上运行，更不用说笔记本电脑上的蹩脚GPU了。图像空间很大。想想看:一个512×512图像有3个颜色通道(红、绿、蓝)是一个786,432维空间!(你需要为一张图片指定这么多的值。)
+
+像谷歌的Imagen和Open AI的DALL-E这样的扩散模型都是在像素空间中。他们使用了一些技巧使模型更快，但这仍然不够。
+
+## Latent diffusion model
+
+稳定扩散的设计是为了解决速度问题。这是如何做到的呢？稳定扩散是一种潜在扩散模型。它不是在高维图像空间中操作，而是首先将图像压缩到潜在空间中。潜在空间缩小了48倍，因此它可以获得处理更少数字的好处。这就是为什么它要快得多。
+
+## Variational Autoencoder
+
+它使用了一种叫做变分自编码器的技术。是的，这正是VAE文件的内容，但我稍后会非常清楚地说明它。变分自编码器(VAE)神经网络由两部分组成:(1)编码器和 (2)解码器。编码器将图像压缩到潜在空间中的较低维度表示。解码器从潜在空间恢复图像。
+
+![Variational autoencoder transforms the image to and from the latent space.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-85.png?resize=1024%2C477&ssl=1)
+
+定扩散模型的潜空间为4x64x64，比图像像素空间小48倍。我们讨论过的所有正向扩散和反向扩散实际上都是在潜空间中进行的。
+所以在训练过程中，它不是生成一个有噪声的图像，而是在潜在空间中生成一个随机张量(潜在噪声)。它不是用噪声破坏图像，而是用潜在噪声破坏图像在潜在空间中的表示。这样做的原因是这样更快，因为潜在空间更小。
+
+## Why is latent space possible?
+
+您可能想知道为什么VAE可以将图像压缩到一个更小的潜在空间而不丢失信息。原因是，自然图像不是随机的。它们有很高的规律性:一张脸遵循眼睛、鼻子、脸颊和嘴巴之间的特定空间关系。狗有四条腿，形状特殊。换句话说，图像的高维是人为的。自然图像可以很容易地压缩到更小的潜在空间，而不会丢失任何信息。这在机器学习中被称为流形假设。
+
+## Reverse diffusion in latent space
+
+下面是稳定扩散中潜在的反向扩散的工作原理。
+
+1. 生成一个随机潜空间矩阵。
+2. 噪声预测器估计潜在矩阵的噪声。
+3. 然后从潜在矩阵中减去估计的噪声。
+4. 步骤2和3重复到某些采样步骤。
+5. VAE的解码器将潜在矩阵转换为最终图像。
+
+## What is a VAE file?
+
+VAE文件用于stable diffusion v1，以改善眼睛和面部。它们是我们刚刚谈到的自动编码器的解码器。通过进一步微调解码器，模型可以描绘更精细的细节。
+你可能意识到我前面所说的并不完全正确。将图像压缩到潜在空间中确实会丢失信息，因为原始VAE没有恢复细节。相反，VAE解码器负责绘制精细的细节。
+
+# Conditioning
+
+我们的理解是不完整的:文字提示在哪里进入图片?没有它，稳定扩散就不是一个文本到图像的模型。你会得到一只猫或一只狗的图像，没有任何方法来控制它。
+这就是条件作用的作用。条件调节的目的是控制噪声预测器，使预测的噪声在从图像中减去后给我们想要的东西。
+
+## Text conditioning (text-to-image)
+
+下面概述了如何处理文本提示并将其输入噪声预测器。Tokenizer首先将提示符中的每个单词转换为一个称为标记的数字。然后将每个标记转换为768个值的向量，称为嵌入。(是的，这与您在AUTOMATIC1111中使用的嵌入相同)然后，嵌入由文本转换器处理，并准备由噪声预测器使用。
+
+![How the text prompt is processed and fed into the noise predictor to steer image generation.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-86.png?resize=1024%2C425&ssl=1)
+
+## Tokenizer
+
+## Embedding
+
+## Feeding embeddings to noise predictor
+
+![From embeddings to the noise predictor.](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-91.png?resize=768%2C510&ssl=1)
+
+在输入到噪声预测器之前，嵌入需要由文本转换器进一步处理。transformer 就像调节的通用适配器。在本例中，它的输入是文本嵌入向量，但也可以是其他东西，如类标签、图像和深度映射。转换器不仅进一步处理数据，而且还提供了一种机制来包括不同的调节模式。
+文本转换器的输出被整个U-Net的噪声预测器多次使用。U-Net通过交叉注意机制来消耗它。这就是提示语中的单词是如何组合在一起并相互关联的。例如，提示“一个蓝眼睛的男人”需要在“蓝色”和“眼睛”之间进行交叉注意，这样Stable Diffusion才能知道应该画一个蓝眼睛的男人，而不是一个蓝眼睛的男人……
+
+附注:超网络，一种微调稳定扩散模型的技术，劫持交叉注意网络来插入风格。
+
+## Other conditioning
+
+文本提示并不是稳定扩散模型的唯一条件。文本提示符和深度图像都用于调整深度到图像模型。ControlNet利用检测到的轮廓、人体姿势等来调节噪声预测器，并对图像生成实现了出色的控制。
+
+# Stable Diffusion step-by-step
+
+在文本到图像中，你给Stable Diffusion一个文本提示，它会返回一张图像。
+
+步骤1.稳定扩散在潜空间中生成一个随机张量。你通过设置随机数生成器的种子来控制这个张量。如果你将种子设置为某个值，你将总是得到相同的随机张量。这是你在潜空间中的图像。但目前这些都是噪音。
+
+步骤2.噪声预测器U-Net将潜在的噪声图像和文本提示作为输入，并在潜在空间(4x64x64张量)中预测噪声。
+
+步骤3.从潜在图像中减去潜在噪声。这将成为你新的潜在图像。步骤2和步骤3重复一定数量的采样步骤，例如20次。
+
+步骤4.最后，VAE的解码器将潜在图像转换回像素空间。这是你运行稳定扩散后得到的图像。
+
+下面是如何在每个采样步骤中图像的演变。
+
+
+![去噪过程](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/ezgif-1-74fb1d90ed.gif?resize=512%2C512&ssl=1)
+
+## Image-to-image
+
+Image-to-image是SDEdit方法中首次提出的一种方法。它可以应用于任何扩散模型。所以我们有了稳定扩散(潜在扩散模型)的图像到图像。
+一个输入图像和一个文本提示符作为图像到图像的输入提供。生成的图像将受到输入图像和文本提示的制约。例如，使用这张业余绘画和提示“带有茎、水滴、戏剧性灯光的完美绿苹果照片”作为输入，图像对图像可以将其变成专业绘画:
+
+![Image-to-image](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-97.png?resize=1024%2C521&ssl=1)
+
+下面是一步一步的过程。
+
+步骤1.输入图像被编码进入潜空间。
+
+![](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-99.png?resize=768%2C503&ssl=1)
+
+步骤2. 噪声被添加到潜在图像中。Denoising strength 控制添加多少噪声。如果为0，则不添加噪声。如果它是1，则添加最大数量的噪声，使潜在图像成为一个完全随机张量。
+
+![](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-100.png?resize=1024%2C493&ssl=1)
+
+步骤3. 噪声预测器U-Net以潜在噪声图像和文本提示符作为输入，在潜在空间(4x64x64张量)中预测噪声。
+
+![](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-94.png?resize=1024%2C506&ssl=1)
+
+步骤4. 从潜在图像中减去潜在噪声。这将成为你新的潜在图像。步骤3和步骤4重复一定数量的采样步骤，例如20次。
+
+第5步. 最后，VAE的解码器将潜在图像转换回像素空间。这是运行image-to-image后得到的图像。
+
+现在你知道什么是image-to-image了:它所做的就是用一点噪声和一点输入图像来设置初始的潜在图像。将去噪强度设置为1相当于文本到图像，因为初始潜在图像完全是随机噪声。
+
+# What is CFG value?
+
+如果不解释无分类器指导(CFG)，这篇文章就不完整，这是AI艺术家每天都在修补的价值。为了理解它是什么，我们需要首先接触它的前身，分类器引导…
+
+## Classifier guidance
+
+分类器引导是一种将图像标签纳入扩散模型的方法。你可以使用标签来指导扩散过程。例如，标签“猫”引导反向扩散过程来生成猫的照片。
+
+分类器引导尺度是一个参数，用于控制扩散过程与标签的密切程度。
+下面是我从这篇论文中偷来的一个例子。假设有三组图像，标签分别是“猫”、“狗”和“人”。如果扩散是非引导的，模型将从每个组的总体中抽取样本，但有时它可能会绘制符合两个标签的图像，例如一个男孩抚摸一只狗。
+
+在高分类器引导下，扩散模型生成的图像将倾向于极端或明确的例子。如果您向模型询问猫，它将返回一个明确的猫图像，而不是其他任何图像。
+分类器指导尺度控制着指导遵循的紧密程度。在上图中，右边的抽样比中间的抽样有更高的分类器引导尺度。在实践中，这个标度值只是带有该标签的数据的漂移项的乘法器。
+
+## Classifier-free guidance
+
+尽管分类器指导实现了破纪录的性能，但它需要一个额外的模型来提供指导。这给训练带来了一些困难。
+用其作者的术语来说，无分类器引导是一种实现“无分类器引导”的方法。他们没有使用类别标签和单独的模型进行指导，而是建议使用图像标题和训练条件扩散模型，就像我们在文本到图像中讨论的那样。
+
+他们将分类器部分作为噪声预测器U-Net的条件反射，在图像生成中实现了所谓的“无分类器”(即没有单独的图像分类器)引导。
+
+### CFG value
+
+现在我们有了一个通过条件作用的无分类器扩散过程，我们如何控制应该遵循多少指导?
+无分类器引导(CFG)尺度是一个控制文本提示对扩散过程的影响程度的值。当它被设置为0时，图像生成是无条件的(即提示被忽略)。较高的值将扩散引向提示符。
