@@ -12,5 +12,8 @@
 # Diffusion model
 
 稳定扩散属于一类深度学习模型，被称为扩散模型。稳定扩散模型是一种“生成模型”，这意味着它们被设计用来生成与训练中看到的类似的新数据。而在稳定扩散模型的场景中，数据是图像。
+为什么叫扩散模型?因为它的数学看起来很像物理中的扩散。让我们来看看这个想法。
+假设我只用两种图像训练一个扩散模型:猫和狗。在下图中，左边的两个峰代表猫和狗的图像组。
 
-
+## Forward diffusion
+![image1](https://i0.wp.com/stable-diffusion-art.com/wp-content/uploads/2022/12/image-79.png?resize=1024%2C446&ssl=1)
